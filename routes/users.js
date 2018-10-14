@@ -104,7 +104,7 @@ router.get('/get', function(req, res) {
 
 router.get('/', async function(req, res) {
     if (typeof req.query.user !== 'string' ||
-            typeof req.query.password !== 'string') {
+        typeof req.query.password !== 'string') {
         return res.send('error in parameters, missing "user" or "password"');
     }
     console.log(req.query);
@@ -119,8 +119,13 @@ router.get('/', async function(req, res) {
         return res.send('error during slide');
     }
 
-    _postPage(time); //slide here
+    let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
 
+    if (session.find(a => a.user === req.query.user)) {
+        return res.send('timeout in progress...');
+    }
+
+    _postPage(time); //slide here
 
     //clear cookies
     console.log('tego', time);
@@ -128,7 +133,6 @@ router.get('/', async function(req, res) {
 
 
     //manage a timeout to avoid multi sliding
-    let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
     session.push(req.query);
     fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
 
