@@ -122,10 +122,7 @@ router.get('/', async function(req, res) {
     res.setHeader('Content-Type', 'application/json');
 
     console.log(req.query);
-    console.log(req.query.user.length);
-    console.log(req.query.password.length);
     const isCredentialsMissing = typeof req.query.user !== 'string' || typeof req.query.password !== 'string' || !req.query.user.length || !req.query.password.length
-    console.log(isCredentialsMissing);
     if (isCredentialsMissing) { //error 401 wrong parameters
         return res.send({status: 401, message: 'Error in parameters, missing "user" or "password"'});
     }
@@ -133,7 +130,7 @@ router.get('/', async function(req, res) {
     request = request.defaults({jar: j});
 
     let header = await _getHeader();
-    console.log('HEADER', header);
+    //console.log('HEADER', header);
 
     let login = await _postLogin(header, req.query).catch(err => err);
     if (typeof login === 'object') { //error 403 - wrong credentials
@@ -164,8 +161,7 @@ router.get('/', async function(req, res) {
     session.push(req.query); //comment this to deactive the session management
     fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
 
-    let timeout = 10000; //1h
-    //let timeout = 60000 * 60; //1h
+    let timeout = 60000 * 2;
     console.log('Set timeout of', timeout, 'for', req.query.user);
     setTimeout(function() {
         let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
@@ -173,7 +169,7 @@ router.get('/', async function(req, res) {
         fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
         console.log('Timeout cleared for ', req.query.user);
     }, timeout);
-    res.send({status: 200, message: `Slided for ${userInfo.time} (GMT+2)`});
+    res.send({status: 200, message: `${userInfo.name} - Slided for ${userInfo.time} (GMT+2)`});
 });
 
 module.exports = router;
