@@ -127,9 +127,8 @@ router.get('/', async function(req, res) {
     const isCredentialsMissing = typeof req.query.user !== 'string' || typeof req.query.password !== 'string' || !req.query.user.length || !req.query.password.length
     console.log(isCredentialsMissing);
     if (isCredentialsMissing) { //error 401 wrong parameters
-        return res.send({status: 401, message: 'error in parameters, missing "user" or "password"'});
+        return res.send({status: 401, message: 'Error in parameters, missing "user" or "password"'});
     }
-    console.log('why');
     let j = request.jar();
     request = request.defaults({jar: j});
 
