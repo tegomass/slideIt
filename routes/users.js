@@ -2,6 +2,7 @@ const express = require('express');
 let request = require('request');
 const fs = require('fs');
 const router = express.Router();
+const fcm = require('./fcm.js');
 
 let jsdom = require('jsdom');
 const {JSDOM} = jsdom;
@@ -143,17 +144,17 @@ async function timeout(req, res, next) {
     console.log(req.query.user);
     if (session.findIndex(a => a.user === req.query.user) !== -1) {
         console.log(req.query.user + ' is already in timeout');
-        return res.send({status: 512, message: 'Request already sent, timeout was activated to prevent multiple slide'})
+        return res.send({status: 512, message: 'Request already sent, timeout was activated to prevent multiple slide'});
     }
 
     session.push(req.query); //comment this to deactive the session management
     fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
 
-    const timer = req.query['timer']*1000*60;
+    const timer = req.query['timer'] * 1000 * 60;
     setTimeout(function() {
         next();
     }, timer);
-    res.send({status: 200})
+    res.send({status: 200});
 
 }
 
@@ -179,12 +180,11 @@ router.get('/credentials', getName, function(req, res) {
 
 router.get('/', timeout, getName, async function(req, res) {
 
-    console.log(req.query);
-    console.log(res.locals.userInfo);
-    //add a confirmation here ???
+    // console.log('RES.QUERY', req.query);
+    // console.log('RES.LOCALS.USERINFO',res.locals.userInfo);
 
     const result = await _postPage(res.locals.userInfo.time); //slide here
-
+    fcm.pushMessage(req.query.token, `${res.locals.userInfo.name} - Slided at ${res.locals.userInfo.time} (GMT+2)`);
     //console.log('RESULT');
     //console.log(result);
 
@@ -196,8 +196,6 @@ router.get('/', timeout, getName, async function(req, res) {
     fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
     console.log('Timeout cleared for ', req.query.user);
     //res.send({status: 200, message: `${userInfo.name} - Slided for ${userInfo.time} (GMT+2)`});
-
-    //PUSH NOTIFICATION GOES HERE !!!!
 });
 
 module.exports = router;
