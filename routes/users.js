@@ -110,19 +110,8 @@ function _postPage(date) { //slide this
     });
 }
 
-/* GET users listing. */
-router.get('/get', function(req, res) {
-    _getHeader(true);
-    res.send('respond with a resource');
-});
-
-router.get('/', async function(req, res) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.setHeader('Content-Type', 'application/json');
-
-    console.log(req.query);
-    const isCredentialsMissing = typeof req.query.user !== 'string' || typeof req.query.password !== 'string' || !req.query.user.length || !req.query.password.length
+async function getName(req, res, next) {
+    const isCredentialsMissing = typeof req.query.user !== 'string' || typeof req.query.password !== 'string' || !req.query.user.length || !req.query.password.length;
     if (isCredentialsMissing) { //error 401 wrong parameters
         return res.send({status: 401, message: 'Error in parameters, missing "user" or "password"'});
     }
@@ -143,33 +132,72 @@ router.get('/', async function(req, res) {
     if (typeof userInfo !== 'object') { //error 404 - unknown error from getting userInfo
         return res.send({status: 404, ...userInfo});
     }
+    res.locals.j = j;
+    res.locals.userInfo = userInfo;
+    next();
+}
 
-    //add a confirmation here ???
-
+async function timeout(req, res, next) {
+    //manage a timeout to avoid multi sliding
     let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
-    if (session.find(a => a.user === req.query.user)) { //multi sliding guarding - 512 timeout in progress
-        return res.send({status: 512, message: 'Timeout in progress... Try again later'});
+    console.log(req.query.user);
+    if (session.findIndex(a => a.user === req.query.user) !== -1) {
+        console.log(req.query.user + ' is already in timeout');
+        return res.send({status: 512, message: 'Request already sent, timeout was activated to prevent multiple slide'})
     }
 
-    // await _postPage(time); //slide here
+    session.push(req.query); //comment this to deactive the session management
+    fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
 
+    const timer = req.query['timer']*1000*60;
+    setTimeout(function() {
+        next();
+    }, timer);
+    res.send({status: 200})
+
+}
+
+router.all('/*', function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    next();
+});
+
+/* GET users listing. */
+router.get('/get', function(req, res) {
+    _getHeader(true);
+    res.send('respond with a resource');
+});
+
+router.get('/credentials', getName, function(req, res) {
+
+    const userInfo = res.locals.userInfo;
+    console.log(userInfo);
+
+    res.send({status: 200, ...userInfo});
+});
+
+router.get('/', timeout, getName, async function(req, res) {
+
+    console.log(req.query);
+    console.log(res.locals.userInfo);
+    //add a confirmation here ???
+
+    const result = await _postPage(res.locals.userInfo.time); //slide here
+
+    //console.log('RESULT');
+    //console.log(result);
 
     //clear cookies
     request = request.defaults({jar: false});
 
-    //manage a timeout to avoid multi sliding
-    session.push(req.query); //comment this to deactive the session management
+    let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
+    session = session.filter(a => a.user !== req.query.user);
     fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
+    console.log('Timeout cleared for ', req.query.user);
+    //res.send({status: 200, message: `${userInfo.name} - Slided for ${userInfo.time} (GMT+2)`});
 
-    let timeout = 60000 * 2;
-    console.log('Set timeout of', timeout, 'for', req.query.user);
-    setTimeout(function() {
-        let session = JSON.parse(fs.readFileSync('./session.json', 'UTF8'));
-        session = session.filter(a => a.user !== req.query.user);
-        fs.writeFileSync('./session.json', JSON.stringify(session, null, 2));
-        console.log('Timeout cleared for ', req.query.user);
-    }, timeout);
-    res.send({status: 200, message: `${userInfo.name} - Slided for ${userInfo.time} (GMT+2)`});
+    //PUSH NOTIFICATION GOES HERE !!!!
 });
 
 module.exports = router;
